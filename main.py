@@ -1,9 +1,10 @@
+from time import sleep
 from urllib import request, parse
 import json
 from urllib.error import URLError
 
 
-def func(email, password, token_url, analyst_url):
+def func(email, password, token_url):
     auth_data = parse.urlencode({
         "email": email,
         "password": password,
@@ -20,13 +21,20 @@ def func(email, password, token_url, analyst_url):
         return "Сервер недоступен"
 
     if clear_token:
-        analyst_req = request.Request(analyst_url, headers={'User-Agent': 'Analytic-Client', 'Cookie': clear_token},
-                                      method="GET")
-        analyst_resp = request.urlopen(analyst_req)
-        out_json = json.loads(analyst_resp.read())
-        print(out_json)
+        result = {"hh_vacancies":[], "partner_vacancies":[]}
+        prefix_set = ("hh_vacancies", "partner_vacancies")
+        for prefix in prefix_set:
+            analyst_url = env[prefix]
+            while analyst_url:
+                sleep(1)
+                analyst_req = request.Request(analyst_url, headers={'User-Agent': 'Analytic-Client', 'Cookie': clear_token},
+                                              method="GET")
+                analyst_resp = request.urlopen(analyst_req)
+                out_json = json.loads(analyst_resp.read())
+                result[prefix] += out_json["results"]
+                analyst_url = out_json["next"]
         with open('data.json', 'w') as f:
-            json.dump(out_json, f)
+            json.dump(result, f)
             f.close()
             return "Файл data.json создан/обновлён"
     return "Произошла ошибка, проверте файл окружения"
@@ -41,4 +49,4 @@ def env_extract() -> dict:
 
 env = env_extract()
 
-func(env["email"], env["password"], env["token_url"], env["analyst_url"])
+print(func(env["email"], env["password"], env["token_url"]))
